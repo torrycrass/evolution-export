@@ -12,7 +12,7 @@ Evolution's built-in export options are limited — there is no right-click expo
 - **Full CLI** for scripting, automation, and power users
 - **Auto-detects** Evolution's storage format (Maildir++ or mbox)
 - Exports to **Maildir**, **mbox**, or **individual EML files**
-- **Optional tar.gz compression** of the output directory (`-z` / menu option)
+- **Optional tar.gz compression** with choice to keep or remove the original export (`-z` / `-R` / menu options)
 - **Recursive subfolder support** — export an entire folder tree in one command
 - **Dry-run mode** — preview exactly what will be exported before writing anything
 - Correctly handles Evolution's **Camel `_XX` hex name encoding**
@@ -148,9 +148,12 @@ If the selected folder has subfolders, you are asked whether to include them.
   STEP 4 OF 5 — Options  (Archive → maildir)
 
   Output directory (default: /home/user/mail-backup/Archive):
-  Compress output to .tar.gz when done? [y/N]:
+  Compress output to .tar.gz when done? [y/N]: y
+  Remove original export files after compression? [y/N]:
   Dry run only (no files written)? [y/N]:
 ```
+
+The "Remove original export files" prompt only appears if you answer yes to compression.
 
 ### Step 5 — Confirm
 
@@ -166,6 +169,7 @@ A full summary is shown before anything is written. Enter `n` to cancel safely.
   Output format: maildir
   Output path  : /home/user/mail-backup/Archive
   Compress     : yes (.tar.gz)
+  Keep originals: no — archive only
   Dry run      : no
 
   Proceed with export? [Y/n]:
@@ -245,6 +249,7 @@ evo-export export <folder> -o <output_dir> [options]
 | `-f FORMAT`, `--format FORMAT` | Output format: `maildir` (default), `mbox`, or `eml` |
 | `-r`, `--recursive` | Include all subfolders |
 | `-z`, `--compress` | Compress the output directory to a `.tar.gz` archive after export |
+| `-R`, `--remove-originals` | Remove the export directory after successful compression (only meaningful with `-z`) |
 | `--dry-run` | Show what would be exported without writing any files |
 
 ---
@@ -267,16 +272,21 @@ evo-export export <folder> -o <output_dir> [options]
 
 ## Compression
 
-When compression is enabled (menu option or `-z` flag), `evo-export` creates a `.tar.gz` archive of the entire output directory immediately after the export completes.
+When compression is enabled (menu option or `-z` flag), `evo-export` creates a `.tar.gz` archive of the exported folder immediately after the export completes. The archive is named `<folder_name>.tar.gz` and placed in the output directory.
 
-The archive is named `<output_directory_name>.tar.gz` and placed alongside the output directory. The uncompressed output directory is preserved unless you remove it manually.
+By default the uncompressed export is kept alongside the archive. Add `-R` / `--remove-originals` (or answer yes to the menu prompt) to delete the export directory once the archive is verified — useful when disk space is a concern.
+
+The removal includes a safety check: the archive must be non-zero bytes before any deletion is attempted. If compression fails or produces an empty file, the originals are left untouched.
 
 ```bash
-# Export Archive folder as mbox, then compress
+# Compress and keep the original export directory
 evo-export export Archive -o ~/mail-backup -f mbox -r -z
+
+# Compress and remove the original export directory (archive only)
+evo-export export Archive -o ~/mail-backup -f mbox -r -z -R
 ```
 
-**Output:**
+**Output with `-z -R`:**
 
 ```
 INFO     Exporting 6 folder(s) -> mbox
@@ -285,6 +295,7 @@ INFO         412 messages (18.3 MB)
 ...
 INFO     Compressing /home/user/mail-backup/Archive -> /home/user/mail-backup/Archive.tar.gz ...
 INFO     Archive created: /home/user/mail-backup/Archive.tar.gz (4.1 MB)
+INFO     Removed original export directory: /home/user/mail-backup/Archive
 
 =======================================================
 Export complete
@@ -292,8 +303,8 @@ Export complete
   Messages exported  : 751
   Data processed     : 37.2 MB
   Errors             : 0
-  Output directory   : /home/user/mail-backup/Archive
   Archive created    : /home/user/mail-backup/Archive.tar.gz
+  Originals removed  : yes (archive only)
 =======================================================
 ```
 
@@ -317,8 +328,11 @@ evo-export export Archive -o ~/mail-backup --dry-run -r
 # Lossless export (Maildir++ source → Maildir output)
 evo-export export Archive -o ~/mail-backup -f maildir -r
 
-# Export as mbox, then compress to Archive.tar.gz
+# Export as mbox, then compress — keep original directory
 evo-export export Archive -o ~/mail-backup -f mbox -r -z
+
+# Export as mbox, compress, then remove original (archive only)
+evo-export export Archive -o ~/mail-backup -f mbox -r -z -R
 
 # Export as individual EML files, verbose logging
 evo-export export Archive -o ~/mail-backup -f eml -r -v
@@ -403,6 +417,7 @@ evo-export --verbose list
 ## Credit
 If you so see fit, credit is fine. This was built by Torry Crass (plaintext) with assistance from Claude AI.
 
+---
 ## License
 
 UNLICENSE — see [LICENSE](LICENSE) for details.
